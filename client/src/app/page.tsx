@@ -1,9 +1,12 @@
-import SignupPage from "./signup/page";
+"use client";
+
+import { UserContextProvider } from "@/utils/UserContext";
+import Router from "@/utils/Router";
 
 export default function Home() {
   return (
-    <main className="">
-      <SignupPage />
-    </main>
+    <UserContextProvider>
+      <Router />
+    </UserContextProvider>
   );
 }
