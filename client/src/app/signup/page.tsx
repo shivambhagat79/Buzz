@@ -5,7 +5,8 @@ import Link from "next/link";
 import axios from "axios";
 import { UserContext, UserContextType } from "@/utils/UserContext";
 import { useRouter } from "next/navigation";
-import { Button, Input } from "@nextui-org/react";
+import { Button, Input, useDisclosure } from "@nextui-org/react";
+import AlertModal from "@/components/AlertModal";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -16,6 +17,10 @@ export default function SignupPage() {
     UserContext
   ) as UserContextType;
   const router = useRouter();
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [alertMessage, setAlertMessage] = useState(
+    "Please enter a valid username and password."
+  );
 
   axios.defaults.baseURL = "http://localhost:4000";
   axios.defaults.withCredentials = true;
@@ -28,30 +33,44 @@ export default function SignupPage() {
     setPassword(password.trim());
 
     if (password !== rePassword) {
-      alert("Passwords do not match");
+      setAlertMessage("Passwords do not match. Please re-enter the password.");
+      onOpen();
       return;
     }
 
     if (!/^[a-zA-Z\s]*$/.test(name)) {
-      alert("Name can only contain letters and spaces");
+      setAlertMessage(
+        "Name can only contain letters and spaces without special characters."
+      );
+      onOpen();
       return;
     }
 
     if (!/^[a-zA-Z0-9\_]*$/.test(username)) {
-      alert("Invalid Username");
+      setAlertMessage(
+        "Username must only contain alphanumeric characters and underscores without spaces."
+      );
+      onOpen();
       return;
     }
 
     if (password.length < 8 || /^.*\s.*$/.test(password)) {
-      alert(
+      setAlertMessage(
         "Password Must be at least 8 characters long and cannot contain spaces."
       );
+      onOpen();
       return;
     }
 
     const { data } = await axios.post("/signup", { name, username, password });
     if (!data.valid) {
       alert("Username already exists");
+      setAlertMessage(
+        "Username : " +
+          username +
+          " already exists. Please choose another username or Login to this user."
+      );
+      onOpen();
       return;
     }
 
@@ -62,83 +81,91 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="w-screen h-screen flex justify-center items-center dark bg-black md:bg-zinc-950">
-      <div className="max-w-md w-full mx-auto rounded-none md:rounded-2xl p-4 md:p-8 shadow-input bg-white dark:bg-black">
-        <h2 className="font-bold text-3xl text-neutral-800 dark:text-neutral-200">
-          Welcome to Buzz
-        </h2>
-        <p className="text-neutral-600 text text-sm max-w-sm mt-2 dark:text-neutral-300">
-          Please enter the following information to get started wth your new
-          account on Buzz.
-        </p>
-
-        <form className="my-8" onSubmit={handleSubmit}>
-          <Input
-            label="Name"
-            className="text-white pt-5"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            variant="bordered"
-            isInvalid={!/^[a-zA-Z\s]*$/.test(name)}
-            errorMessage="Name can only contain letters and spaces"
-            required
-          />
-          <Input
-            label="Username"
-            className="text-white pt-5"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            variant="bordered"
-            isInvalid={!/^[a-zA-Z0-9\_]*$/.test(username)}
-            errorMessage="Name can only contain alphanumeric characters and underscores"
-            required
-          />
-          <Input
-            label="Password"
-            className="text-white pt-5"
-            value={password}
-            type="password"
-            isInvalid={
-              password.length > 0 &&
-              (password.length < 8 || /^.*\s.*$/.test(password))
-            }
-            errorMessage="Password Must be at least 8 characters long and cannot contain spaces"
-            onChange={(e) => setPassword(e.target.value)}
-            variant="bordered"
-            required
-          />
-          <Input
-            label="Re-enter Password"
-            className="text-white pt-3"
-            value={rePassword}
-            type="password"
-            isInvalid={rePassword.length !== 0 && password !== rePassword}
-            errorMessage="Passwords do not match"
-            onChange={(e) => setRePassword(e.target.value)}
-            variant="bordered"
-            required
-          />
-
-          <Button
-            className="mt-4 mb-6 w-full py-6 font-bold"
-            type="submit"
-            color="primary"
-          >
-            Sign Up
-          </Button>
-
-          <p className="text-zinc-400">
-            Already have an account?{" "}
-            <Link
-              href="/login"
-              className="text-primary font-bold hover:text-primary-300 transition-all"
-            >
-              Login
-            </Link>
+    <>
+      <AlertModal
+        isOpen={isOpen}
+        onOpenChange={onOpenChange}
+        title="Invalid Input!"
+        description={alertMessage}
+      />
+      <div className="w-screen h-screen flex justify-center items-center dark bg-black md:bg-zinc-950">
+        <div className="max-w-md w-full mx-auto rounded-none md:rounded-2xl p-4 md:p-8 shadow-input bg-white dark:bg-black">
+          <h2 className="font-bold text-3xl text-neutral-800 dark:text-neutral-200">
+            Welcome to Buzz
+          </h2>
+          <p className="text-neutral-600 text text-sm max-w-sm mt-2 dark:text-neutral-300">
+            Please enter the following information to get started wth your new
+            account on Buzz.
           </p>
-        </form>
+
+          <form className="my-8" onSubmit={handleSubmit}>
+            <Input
+              label="Name"
+              className="text-white pt-5"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              variant="bordered"
+              isInvalid={!/^[a-zA-Z\s]*$/.test(name)}
+              errorMessage="Name can only contain letters and spaces"
+              required
+            />
+            <Input
+              label="Username"
+              className="text-white pt-5"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              variant="bordered"
+              isInvalid={!/^[a-zA-Z0-9\_]*$/.test(username)}
+              errorMessage="Name can only contain alphanumeric characters and underscores"
+              required
+            />
+            <Input
+              label="Password"
+              className="text-white pt-5"
+              value={password}
+              type="password"
+              isInvalid={
+                password.length > 0 &&
+                (password.length < 8 || /^.*\s.*$/.test(password))
+              }
+              errorMessage="Password Must be at least 8 characters long and cannot contain spaces"
+              onChange={(e) => setPassword(e.target.value)}
+              variant="bordered"
+              required
+            />
+            <Input
+              label="Re-enter Password"
+              className="text-white pt-3"
+              value={rePassword}
+              type="password"
+              isInvalid={rePassword.length !== 0 && password !== rePassword}
+              errorMessage="Passwords do not match"
+              onChange={(e) => setRePassword(e.target.value)}
+              variant="bordered"
+              required
+            />
+
+            <Button
+              className="mt-4 mb-6 w-full py-6 font-bold"
+              type="submit"
+              color="primary"
+            >
+              Sign Up
+            </Button>
+
+            <p className="text-zinc-400">
+              Already have an account?{" "}
+              <Link
+                href="/login"
+                className="text-primary font-bold hover:text-primary-300 transition-all"
+              >
+                Login
+              </Link>
+            </p>
+          </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

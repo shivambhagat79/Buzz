@@ -2,8 +2,8 @@ import axios from "axios";
 import { createContext, useEffect, useState } from "react";
 
 export interface UserContextType {
-  username: string | null;
-  id: string | null;
+  username: string;
+  id: string;
   setUsername: (a: string) => void;
   setId: (a: string) => void;
 }
@@ -28,10 +28,8 @@ export function UserContextProvider({
     axios.defaults.withCredentials = true;
 
     axios.get("/profile").then((response) => {
-      if (response.data.valid) {
-        setUsername(response.data.username);
-        setId(response.data.id);
-      }
+      setUsername(response.data.username);
+      setId(response.data.userId);
     });
   }, []);
 

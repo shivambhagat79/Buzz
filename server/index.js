@@ -1,3 +1,4 @@
+// Imports --------------------------------------------------------
 const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
@@ -6,13 +7,20 @@ const cors = require("cors");
 const User = require("./models/User");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcryptjs");
+const ws = require("ws");
+// -----------------------------------------------------------------
 
+// Constants ------------------------------------------------------
 const app = express();
 const bcryptSalt = bcrypt.genSaltSync(10);
+// -----------------------------------------------------------------
 
+// Configurations -------------------------------------------------
 dotenv.config();
 mongoose.connect(process.env.MONGO_URL);
+// -----------------------------------------------------------------
 
+// Middleware ------------------------------------------------------
 app.use(express.json());
 app.use(
   cors({
@@ -21,7 +29,11 @@ app.use(
   })
 );
 app.use(cookieParser());
+// -----------------------------------------------------------------
 
+// Routes ----------------------------------------------------------
+
+// To check if the user is logged in -------------------------------
 app.get("/profile", (req, res) => {
   const token = req.cookies?.token;
 
@@ -37,7 +49,9 @@ app.get("/profile", (req, res) => {
     res.json({ valid: false, message: "No user logged in." });
   }
 });
+// -----------------------------------------------------------------
 
+// To login the user -----------------------------------------------
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
   const foundUser = await User.findOne({ username });
@@ -74,7 +88,9 @@ app.post("/login", async (req, res) => {
     });
   }
 });
+// -----------------------------------------------------------------
 
+// To create a new user --------------------------------------------
 app.post("/signup", async (req, res) => {
   const { name, username, password } = req.body;
   const foundUser = await User.findOne({ username });
@@ -109,7 +125,52 @@ app.post("/signup", async (req, res) => {
     );
   }
 });
+// -----------------------------------------------------------------
 
-app.listen(process.env.PORT, () => {
+// Main Server -----------------------------------------------------
+const server = app.listen(process.env.PORT, () => {
   console.log("Server is running on port " + process.env.PORT);
+});
+// -----------------------------------------------------------------
+
+// Create WebSocket Server ----------------------------------------
+const wss = new ws.Server({ server });
+wss.on("connection", (connection, req) => {
+  console.log("WebSocket connected");
+
+  const cookies = req.headers.cookie;
+
+  if (cookies) {
+    const tokenCookieString = cookies
+      .split(";")
+      .find((cookie) => cookie.startsWith("token="));
+
+    if (tokenCookieString) {
+      const token = tokenCookieString.split("=")[1];
+
+      if (token) {
+        jwt.verify(token, process.env.JWT_SECRET, {}, (err, userData) => {
+          if (err) {
+            throw err;
+          }
+
+          const { userId, username } = userData;
+
+          connection.userId = userId;
+          connection.username = username;
+        });
+      }
+    }
+  }
+
+  [...wss.clients].forEach((client) => {
+    client.send(
+      JSON.stringify({
+        online: [...wss.clients].map((c) => ({
+          userId: c.userId,
+          username: c.username,
+        })),
+      })
+    );
+  });
 });
