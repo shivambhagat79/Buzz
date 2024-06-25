@@ -1,8 +1,8 @@
 "use client";
 
 import { UserContext } from "@/utils/UserContext";
-import { Button, Textarea, divider } from "@nextui-org/react";
-import { useContext, useEffect, useState } from "react";
+import { Button, Textarea } from "@nextui-org/react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { uniqBy } from "lodash";
 
 export default function ChatsPage() {
@@ -11,6 +11,7 @@ export default function ChatsPage() {
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [newMessage, setNewMessage] = useState("");
   const [messages, setMessages] = useState<any>([{ text: "" }]);
+  const messageBoxRef = useRef<HTMLDivElement | null>(null);
   const { id } = useContext(UserContext);
 
   useEffect(() => {
@@ -66,7 +67,18 @@ export default function ChatsPage() {
       },
     ]);
     setNewMessage("");
+
+    const div = messageBoxRef.current;
+
+    div?.scrollIntoView({ behavior: "smooth" });
   }
+
+  useEffect(() => {
+    const div = messageBoxRef.current;
+    if (div) {
+      div.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [messages]);
 
   const onlineUsersExcludingCurrent = { ...onlineUsers };
   delete onlineUsersExcludingCurrent[id];
@@ -92,7 +104,7 @@ export default function ChatsPage() {
           </svg>
           Buzz
         </div>
-        <div className="flex flex-col gap-2 flex-grow p-2 overflow-scroll">
+        <div className="flex flex-col gap-2 flex-grow p-2 overflow-y-scroll">
           {Object.keys(onlineUsersExcludingCurrent).map((userId) => (
             <Button
               onClick={() => {
@@ -122,10 +134,24 @@ export default function ChatsPage() {
               </div>
               <div className="text-xl">{onlineUsers[selectedUser]}</div>
             </div>
-            <div className="flex-grow">
+            <div className="flex-grow p-4 overflow-y-scroll">
               {messagesWithoutDupes.map((message: any, index: any) => (
-                <div key={index}>{message.text}</div>
+                <div
+                  key={index}
+                  className={`flex ${
+                    message.sender === id ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`p-2  rounded-xl mb-1 ${
+                      message.sender === id ? "bg-primary-400" : "bg-zinc-600"
+                    }`}
+                  >
+                    {message.text}
+                  </div>
+                </div>
               ))}
+              <div ref={messageBoxRef}></div>
             </div>
             <form className="p-4 flex gap-4 bg-zinc-900" onSubmit={sendMessage}>
               <Textarea
