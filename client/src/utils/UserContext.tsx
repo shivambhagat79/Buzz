@@ -28,8 +28,10 @@ export function UserContextProvider({
     axios.defaults.withCredentials = true;
 
     axios.get("/profile").then((response) => {
-      setUsername(response.data.username);
-      setId(response.data.userId);
+      if (response.data.valid) {
+        setUsername(response.data.username);
+        setId(response.data.userId);
+      }
     });
   }, []);
 

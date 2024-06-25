@@ -3,24 +3,64 @@
 import { UserContext } from "@/utils/UserContext";
 import { Button, Textarea } from "@nextui-org/react";
 import { useContext, useEffect, useRef, useState } from "react";
-import { uniqBy } from "lodash";
+import { set, uniqBy } from "lodash";
+import axios from "axios";
 
 export default function ChatsPage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<{ [key: string]: string }>({});
+  const [offlineUsers, setOfflineUsers] = useState<{ [key: string]: string }>(
+    {}
+  );
   const [selectedUser, setSelectedUser] = useState<string>("");
   const [newMessage, setNewMessage] = useState("");
   const [messages, setMessages] = useState<any>([{ text: "" }]);
   const messageBoxRef = useRef<HTMLDivElement | null>(null);
   const { id } = useContext(UserContext);
 
+  axios.defaults.baseURL = "http://localhost:4000";
+  axios.defaults.withCredentials = true;
+
   useEffect(() => {
+    connectToWs();
+  }, []);
+
+  function connectToWs() {
     const ws = new WebSocket("ws://localhost:4000");
 
     setWs(ws);
 
     ws.addEventListener("message", handleMessage);
-  }, []);
+    ws.addEventListener("close", () => {
+      setTimeout(() => {
+        console.log("Disconnected. Trying to reconnect.");
+        connectToWs();
+      }, 1000);
+    });
+  }
+
+  useEffect(() => {
+    if (selectedUser !== "") {
+      axios.get(`/messages/${selectedUser}`).then((response) => {
+        setMessages(response.data);
+      });
+    }
+  }, [selectedUser]);
+
+  useEffect(() => {
+    axios.get("/users").then((res) => {
+      const offlineUsersArr = res.data
+        .filter((p: any) => p._id !== id)
+        .filter((p: any) => !Object.keys(onlineUsers).includes(p._id));
+
+      const offlineUsers: { [key: string]: string } = {};
+
+      offlineUsersArr.forEach((p: any) => {
+        offlineUsers[p._id] = p.username;
+      });
+      setOfflineUsers(offlineUsers);
+    });
+  }, [onlineUsers]);
 
   function showOnlineUsers(usersArray: any) {
     const users: { [key: string]: string } = {};
@@ -67,10 +107,6 @@ export default function ChatsPage() {
       },
     ]);
     setNewMessage("");
-
-    const div = messageBoxRef.current;
-
-    div?.scrollIntoView({ behavior: "smooth" });
   }
 
   useEffect(() => {
@@ -117,10 +153,29 @@ export default function ChatsPage() {
                 selectedUser === userId ? "" : "bg-zinc-900"
               }`}
             >
-              <div className="flex items-center justify-center rounded-full text-3xl bg-primary-400 h-10 w-10 text-white">
+              <div className="flex relative items-center justify-center rounded-full text-3xl bg-primary-400 h-10 w-10 text-white">
                 {onlineUsers[userId][0].toUpperCase()}
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full"></div>
               </div>
               {onlineUsers[userId]}
+            </Button>
+          ))}
+          {Object.keys(offlineUsers).map((userId) => (
+            <Button
+              onClick={() => {
+                selectUser(userId);
+              }}
+              key={userId}
+              variant={selectedUser === userId ? "flat" : "solid"}
+              color={selectedUser === userId ? "primary" : "default"}
+              className={`justify-start gap-3 p-4 py-8 ${
+                selectedUser === userId ? "" : "bg-zinc-900"
+              }`}
+            >
+              <div className="flex relative items-center justify-center rounded-full text-3xl bg-primary-400 h-10 w-10 text-white">
+                {offlineUsers[userId][0].toUpperCase()}
+              </div>
+              {offlineUsers[userId]}
             </Button>
           ))}
         </div>
@@ -128,12 +183,6 @@ export default function ChatsPage() {
       <div className="flex w-3/4 flex-col bg-zinc-800">
         {selectedUser !== "" && (
           <>
-            <div className="bg-zinc-900 p-4 flex items-center gap-4">
-              <div className="flex items-center justify-center rounded-full text-3xl bg-primary-400 h-10 w-10 text-white">
-                {onlineUsers[selectedUser][0].toUpperCase()}
-              </div>
-              <div className="text-xl">{onlineUsers[selectedUser]}</div>
-            </div>
             <div className="flex-grow p-4 overflow-y-scroll">
               {messagesWithoutDupes.map((message: any, index: any) => (
                 <div

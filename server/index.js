@@ -32,6 +32,20 @@ app.use(
 app.use(cookieParser());
 // -----------------------------------------------------------------
 
+async function getUserDataFromRequest(req) {
+  return new Promise((resolve, reject) => {
+    const token = req.cookies?.token;
+    if (token) {
+      jwt.verify(token, process.env.JWT_SECRET, {}, (err, userData) => {
+        if (err) throw err;
+        resolve(userData);
+      });
+    } else {
+      reject("no token");
+    }
+  });
+}
+
 // Routes ----------------------------------------------------------
 
 // To check if the user is logged in -------------------------------
@@ -127,6 +141,26 @@ app.post("/signup", async (req, res) => {
   }
 });
 // -----------------------------------------------------------------
+
+// To get messages of a user ---------------------------------------
+app.get("/messages/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const userData = await getUserDataFromRequest(req);
+  const ourUserId = userData.userId;
+
+  const messages = await Message.find({
+    sender: { $in: [ourUserId, userId] },
+    recipient: { $in: [ourUserId, userId] },
+  }).sort({ createdAt: 1 });
+
+  res.json(messages);
+});
+// -----------------------------------------------------------------
+
+app.get("/users", async (req, res) => {
+  const users = await User.find({}, { _id: 1, username: 1 });
+  res.json(users);
+});
 
 // Main Server -----------------------------------------------------
 const server = app.listen(process.env.PORT, () => {
