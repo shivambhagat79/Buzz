@@ -1,13 +1,16 @@
 "use client";
 
 import { UserContext } from "@/utils/UserContext";
-import { Button, Textarea } from "@nextui-org/react";
+import { Button, Textarea, divider } from "@nextui-org/react";
 import { useContext, useEffect, useState } from "react";
+import { uniqBy } from "lodash";
 
 export default function ChatsPage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<{ [key: string]: string }>({});
   const [selectedUser, setSelectedUser] = useState<string>("");
+  const [newMessage, setNewMessage] = useState("");
+  const [messages, setMessages] = useState<any>([{ text: "" }]);
   const { id } = useContext(UserContext);
 
   useEffect(() => {
@@ -33,6 +36,8 @@ export default function ChatsPage() {
 
     if ("online" in messageData) {
       showOnlineUsers(messageData.online);
+    } else if ("text" in messageData) {
+      setMessages((prev: any) => [...prev, { ...messageData }]);
     }
   }
 
@@ -40,8 +45,32 @@ export default function ChatsPage() {
     setSelectedUser(userId);
   }
 
+  function sendMessage(ev: React.FormEvent<HTMLFormElement>) {
+    ev.preventDefault();
+
+    ws?.send(
+      JSON.stringify({
+        text: newMessage,
+        recipient: selectedUser,
+        sender: id,
+      })
+    );
+
+    setMessages((prev: any) => [
+      ...prev,
+      {
+        text: newMessage,
+        sender: id,
+        recipient: selectedUser,
+        _id: Date.now(),
+      },
+    ]);
+    setNewMessage("");
+  }
+
   const onlineUsersExcludingCurrent = { ...onlineUsers };
   delete onlineUsersExcludingCurrent[id];
+  const messagesWithoutDupes = uniqBy(messages, "_id");
 
   return (
     <div className="flex h-screen text-zinc-200 dark">
@@ -86,34 +115,51 @@ export default function ChatsPage() {
       </div>
       <div className="flex w-3/4 flex-col bg-zinc-800">
         {selectedUser !== "" && (
-          <div className="bg-zinc-900 p-4 flex items-center gap-4">
-            <div className="flex items-center justify-center rounded-full text-3xl bg-primary-400 h-10 w-10 text-white">
-              {onlineUsers[selectedUser][0].toUpperCase()}
+          <>
+            <div className="bg-zinc-900 p-4 flex items-center gap-4">
+              <div className="flex items-center justify-center rounded-full text-3xl bg-primary-400 h-10 w-10 text-white">
+                {onlineUsers[selectedUser][0].toUpperCase()}
+              </div>
+              <div className="text-xl">{onlineUsers[selectedUser]}</div>
             </div>
-            <div className="text-xl">{onlineUsers[selectedUser]}</div>
+            <div className="flex-grow">
+              {messagesWithoutDupes.map((message: any, index: any) => (
+                <div key={index}>{message.text}</div>
+              ))}
+            </div>
+            <form className="p-4 flex gap-4 bg-zinc-900" onSubmit={sendMessage}>
+              <Textarea
+                value={newMessage}
+                onChange={(ev) => setNewMessage(ev.target.value)}
+                minRows={1}
+                maxRows={5}
+                placeholder="Type a message"
+              />
+              <Button color="primary" type="submit">
+                Send
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="size-6"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
+                  />
+                </svg>
+              </Button>
+            </form>
+          </>
+        )}
+        {selectedUser === "" && (
+          <div className="flex-grow flex items-center justify-center text-2xl text-zinc-600">
+            Select a chat to see messages
           </div>
         )}
-        <div className="flex-grow">Messages</div>
-        <div className="p-4 flex gap-4 bg-zinc-900">
-          <Textarea className="" minRows={1} maxRows={5} />
-          <Button color="primary">
-            Send
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"
-              />
-            </svg>
-          </Button>
-        </div>
       </div>
     </div>
   );
