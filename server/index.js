@@ -105,6 +105,12 @@ app.post("/login", async (req, res) => {
 });
 // -----------------------------------------------------------------
 
+app.post("/logout", (req, res) => {
+  res
+    .cookie("token", "", { sameSite: "none", secure: true })
+    .json({ status: "ok " });
+});
+
 // To create a new user --------------------------------------------
 app.post("/signup", async (req, res) => {
   const { name, username, password } = req.body;
@@ -171,7 +177,35 @@ const server = app.listen(process.env.PORT, () => {
 // Create WebSocket Server ----------------------------------------
 const wss = new ws.Server({ server });
 wss.on("connection", (connection, req) => {
-  console.log("WebSocket connected");
+  function notifyAboutOnlinePeople() {
+    [...wss.clients].forEach((client) => {
+      client.send(
+        JSON.stringify({
+          online: [...wss.clients].map((c) => ({
+            userId: c.userId,
+            username: c.username,
+          })),
+        })
+      );
+    });
+  }
+
+  connection.isAlive = true;
+
+  connection.timer = setInterval(() => {
+    connection.ping();
+    connection.deathTimer = setTimeout(() => {
+      connection.isAlive = false;
+      clearInterval(connection.timer);
+      connection.terminate();
+      notifyAboutOnlinePeople();
+      console.log("dead");
+    }, 1000);
+  }, 5000);
+
+  connection.on("pong", () => {
+    clearTimeout(connection.deathTimer);
+  });
 
   const cookies = req.headers.cookie;
 
@@ -198,16 +232,7 @@ wss.on("connection", (connection, req) => {
     }
   }
 
-  [...wss.clients].forEach((client) => {
-    client.send(
-      JSON.stringify({
-        online: [...wss.clients].map((c) => ({
-          userId: c.userId,
-          username: c.username,
-        })),
-      })
-    );
-  });
+  notifyAboutOnlinePeople();
 
   connection.on("message", async (message) => {
     const messageData = JSON.parse(message.toString());
@@ -238,3 +263,8 @@ wss.on("connection", (connection, req) => {
   });
 });
 // -----------------------------------------------------------------
+
+wss.on("close", (data) => {
+  console.log("WebSocket closed");
+  console.log(data);
+});

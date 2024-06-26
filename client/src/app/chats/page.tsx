@@ -1,10 +1,11 @@
 "use client";
 
 import { UserContext } from "@/utils/UserContext";
-import { Button, Textarea } from "@nextui-org/react";
+import { Button, Divider, Textarea } from "@nextui-org/react";
 import { useContext, useEffect, useRef, useState } from "react";
-import { set, uniqBy } from "lodash";
+import { uniqBy } from "lodash";
 import axios from "axios";
+import { useRouter } from "next/navigation";
 
 export default function ChatsPage() {
   const [ws, setWs] = useState<WebSocket | null>(null);
@@ -16,7 +17,8 @@ export default function ChatsPage() {
   const [newMessage, setNewMessage] = useState("");
   const [messages, setMessages] = useState<any>([{ text: "" }]);
   const messageBoxRef = useRef<HTMLDivElement | null>(null);
-  const { id } = useContext(UserContext);
+  const { username, id, setUsername, setId } = useContext(UserContext);
+  const router = useRouter();
 
   axios.defaults.baseURL = "http://localhost:4000";
   axios.defaults.withCredentials = true;
@@ -116,6 +118,14 @@ export default function ChatsPage() {
     }
   }, [messages]);
 
+  async function logout() {
+    await axios.post("/logout");
+    setWs(null);
+    setUsername("");
+    setId("");
+    router.push("/login");
+  }
+
   const onlineUsersExcludingCurrent = { ...onlineUsers };
   delete onlineUsersExcludingCurrent[id];
   const messagesWithoutDupes = uniqBy(messages, "_id");
@@ -140,6 +150,7 @@ export default function ChatsPage() {
           </svg>
           Buzz
         </div>
+        <Divider />
         <div className="flex flex-col gap-2 flex-grow p-2 overflow-y-scroll">
           {Object.keys(onlineUsersExcludingCurrent).map((userId) => (
             <Button
@@ -178,6 +189,30 @@ export default function ChatsPage() {
               {offlineUsers[userId]}
             </Button>
           ))}
+        </div>
+        <Divider />
+        <div className="p-2 flex items-center justify-between">
+          <div className="text-base flex items-center gap-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="size-6"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
+              />
+            </svg>
+
+            {username}
+          </div>
+          <Button onClick={logout} size="sm" color="danger" variant="flat">
+            Logout
+          </Button>
         </div>
       </div>
       <div className="flex w-3/4 flex-col bg-zinc-800">
