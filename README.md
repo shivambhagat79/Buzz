@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a [Next.js](https://nextjs.org/) project with the following backend tech-stack:
+This is a [Next.js](https://nextjs.org/) project designed using NextUI and tailwind, with the following backend tech-stack:
 
 - **_MongoDb_** for database
 - **_Express_** for APIs
